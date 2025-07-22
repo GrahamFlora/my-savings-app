@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ipon Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configure Tailwind CSS to use the 'class' strategy for dark mode.
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            padding-bottom: 80px; /* Add padding to prevent footer overlap */
+        }
+        /* Hide scrollbar but allow scrolling */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* View transition styles */
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Animation for piggy bank and coins */
+        @keyframes shake { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+        .shake-animation { animation: shake 0.5s ease-in-out; }
+        
+        /* Icon and Color selection style */
+        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected {
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+            --tw-ring-color: #60a5fa;
+            --tw-ring-offset-width: 2px;
+        }
+        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected {
+            --tw-ring-offset-color: #1f2937;
+        }
+        .theme-btn.selected {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .dark .theme-btn.selected {
+             background-color: #a5b4fc;
+             color: #1e1b4b;
+        }
+        .footer-btn.active {
+            color: #4f46e5; /* Indigo color for active state */
+        }
+        .dark .footer-btn.active {
+            color: #a5b4fc;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4 transition-colors duration-300">
+
+    <div class="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col" style="height: calc(100vh - 2rem); max-height: 900px;">
+        <header class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+             <div class="flex items-center gap-2">
+                <button id="back-btn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 hidden">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <h1 id="header-title" class="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+             </div>
+        </header>
+
+        <main class="p-6 md:p-8 no-scrollbar flex-grow" style="overflow-y: auto;">
+            <!-- View: Dashboard -->
+            <div id="dashboard-view" class="view active">
+                <h2 class="text-2xl font-bold mb-4">My Goals</h2>
+                <div id="goals-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Goal cards will be inserted here -->
+                </div>
+                <div id="no-goals-message" class="text-center py-16 hidden">
+                    <i data-lucide="piggy-bank" class="w-16 h-16 mx-auto text-gray-400"></i>
+                    <h2 class="mt-4 text-xl font-semibold">No goals yet!</h2>
+                    <p class="text-gray-500 mt-2">Click "Add Goal" to start your first savings challenge.</p>
+                </div>
+                 <div id="overall-progress-container" class="mt-8">
+                    <h2 class="text-2xl font-bold mb-2">Overall Progress</h2>
+                    <div class="p-4 rounded-xl">
+                        <canvas id="overall-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Goal Details -->
+            <div id="goal-detail-view" class="view">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+
+            <!-- View: Goal Form (for creating/editing) -->
+            <div id="goal-form-view" class="view">
+                 <h2 id="form-title" class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Create New Goal</h2>
+                 <div class="space-y-4">
+                    <input type="hidden" id="goalId-input">
+                    <div>
+                        <label for="goalName-input" class="block text-sm font-medium">Goal Name & Icon</label>
+                        <div class="flex items-center gap-2 mt-1">
+                             <input type="hidden" id="icon-input">
+                            <button id="change-icon-btn" class="flex-shrink-0 p-3 rounded-lg bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">
+                                <!-- Selected icon appears here -->
+                            </button>
+                            <input type="text" id="goalName-input" class="flex-grow w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-lg p-3" placeholder="e.g., New Laptop">
+                        </div>
+                    </div>
+                     <div id="icon-selection-container" class="hidden">
+                        <label class="block text-sm font-medium">Choose an icon</label>
+                        <div id="icon-selection-grid" class="mt-2 grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <!-- Icons will be dynamically inserted here -->
+                        </div>
+                    </div>
+                    <div>
+                        <label for="objectiveAmount-input" class="block text-sm font-medium">Target Amount (<span class="currency-symbol"></span>)</label>
+                        <input type="number" id="objectiveAmount-input" class="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-lg p-3" placeholder="e.g., 50000">
+                    </div>
+                    <div>
+                        <label for="endDate-input" class="block text-sm font-medium">End Date</label>
+                        <input type="date" id="endDate-input" class="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-lg p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Saving Frequency</label>
+                        <input type="hidden" id="frequency-input">
+                        <div id="frequency-selection-grid" class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <!-- Frequency options will be inserted here -->
+                        </div>
+                    </div>
+                    <div class="flex gap-4 pt-4">
+                        <button id="cancel-goal-form-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-lg">Cancel</button>
+                        <button id="save-goal-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Save Goal</button>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- View: History -->
+            <div id="history-view" class="view">
+                <!-- History content will be dynamically inserted here -->
+            </div>
+
+            <!-- View: Settings -->
+            <div id="settings-view" class="view">
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-semibold">Theme</h3>
+                        <div id="theme-buttons" class="mt-2 grid grid-cols-3 gap-2 rounded-lg bg-gray-200 dark:bg-gray-700 p-1">
+                            <button data-theme="light" class="theme-btn p-2 rounded-md text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="sun"></i>Light</button>
+                            <button data-theme="dark" class="theme-btn p-2 rounded-md text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="moon"></i>Dark</button>
+                            <button data-theme="system" class="theme-btn p-2 rounded-md text-sm font-medium flex items-center justify-center gap-2"><i data-lucide="monitor"></i>System</button>
+                        </div>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-semibold">Dashboard</h3>
+                        <div class="mt-2 flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <label for="toggle-overall-progress" class="text-sm font-medium">Show Overall Progress</label>
+                            <button id="toggle-overall-progress" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-gray-300 dark:bg-gray-600">
+                                <span class="sr-only">Toggle Graph</span>
+                                <span id="toggle-overall-progress-handle" class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform"></span>
+                            </button>
+                        </div>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-semibold">Goal Details</h3>
+                        <div class="mt-2 flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <label for="toggle-goal-progress" class="text-sm font-medium">Show Goal Progress</label>
+                            <button id="toggle-goal-progress" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-gray-300 dark:bg-gray-600">
+                                <span class="sr-only">Toggle Graph</span>
+                                <span id="toggle-goal-progress-handle" class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold">Currency</h3>
+                        <select id="currency-select" class="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-lg p-3"></select>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold">Goal Card Color</h3>
+                        <div id="color-selection-grid" class="mt-2 flex flex-wrap justify-center gap-3 max-w-sm mx-auto">
+                           <!-- Color choices will be dynamically inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+             <!-- Message Box -->
+            <div id="message-box" class="fixed top-5 right-5 mt-4 p-3 text-center rounded-lg text-sm hidden z-50 shadow-lg"></div>
+        </main>
+
+        <footer class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 grid grid-cols-3 text-center">
+            <button data-view="dashboard-view" class="footer-btn p-4 text-gray-600 dark:text-gray-400 flex flex-col items-center space-y-1 active">
+                <i data-lucide="layout-dashboard"></i>
+                <span class="text-xs font-medium">Dashboard</span>
+            </button>
+            <button data-view="goal-form-view" class="footer-btn p-4 text-gray-600 dark:text-gray-400 flex flex-col items-center space-y-1">
+                <i data-lucide="plus-circle"></i>
+                <span class="text-xs font-medium">Add Goal</span>
+            </button>
+            <button data-view="settings-view" class="footer-btn p-4 text-gray-600 dark:text-gray-400 flex flex-col items-center space-y-1">
+                <i data-lucide="settings"></i>
+                <span class="text-xs font-medium">Settings</span>
+            </button>
+        </footer>
+    </div>
+
+    <!-- Modal for Delete Confirmation -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+            <h3 class="text-lg font-bold">Confirm Deletion</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Are you sure you want to delete this goal? This action cannot be undone.</p>
+            <div class="flex gap-4 mt-6">
+                <button id="cancel-delete-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancel</button>
+                <button id="confirm-delete-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Delete</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // --- DOM ELEMENTS ---
+        const views = document.querySelectorAll('.view');
+        const goalsGrid = document.getElementById('goals-grid');
+        const noGoalsMessage = document.getElementById('no-goals-message');
+        const goalFormView = document.getElementById('goal-form-view');
+        const goalDetailView = document.getElementById('goal-detail-view');
+        const historyView = document.getElementById('history-view');
+        const saveGoalBtn = document.getElementById('save-goal-btn');
+        const cancelGoalFormBtn = document.getElementById('cancel-goal-form-btn');
+        const messageBox = document.getElementById('message-box');
+        const deleteModal = document.getElementById('delete-modal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const headerTitle = document.getElementById('header-title');
+        const backBtn = document.getElementById('back-btn');
+        const footerBtns = document.querySelectorAll('.footer-btn');
+
+        // Form Inputs
+        const formTitle = document.getElementById('form-title');
+        const goalIdInput = document.getElementById('goalId-input');
+        const goalNameInput = document.getElementById('goalName-input');
+        const objectiveAmountInput = document.getElementById('objectiveAmount-input');
+        const endDateInput = document.getElementById('endDate-input');
+        const frequencyInput = document.getElementById('frequency-input');
+        const frequencySelectionGrid = document.getElementById('frequency-selection-grid');
+        const iconInput = document.getElementById('icon-input');
+        const iconSelectionContainer = document.getElementById('icon-selection-container');
+        const iconSelectionGrid = document.getElementById('icon-selection-grid');
+        const changeIconBtn = document.getElementById('change-icon-btn');
+
+        // Settings Elements
+        const themeButtons = document.getElementById('theme-buttons');
+        const colorSelectionGrid = document.getElementById('color-selection-grid');
+        const currencySelect = document.getElementById('currency-select');
+        const toggleOverallProgressBtn = document.getElementById('toggle-overall-progress');
+        const toggleOverallProgressHandle = document.getElementById('toggle-overall-progress-handle');
+        const toggleGoalProgressBtn = document.getElementById('toggle-goal-progress');
+        const toggleGoalProgressHandle = document.getElementById('toggle-goal-progress-handle');
+
+        // --- STATE & CONFIG ---
+        let goals = [];
+        let appSettings = {};
+        let goalToDeleteId = null;
+        let lastView = 'dashboard-view';
+        let overallChartInstance = null;
+        let goalChartInstance = null;
+        
+        const iconList = ['piggy-bank', 'laptop', 'car', 'home', 'plane', 'gift', 'book-open', 'briefcase', 'graduation-cap', 'heart', 'camera', 'gamepad-2'];
+        const colorOptions = {
+            'Default': 'bg-gray-50 dark:bg-gray-700/50',
+            'Sky': 'bg-sky-100 dark:bg-sky-900/50',
+            'Mint': 'bg-emerald-100 dark:bg-emerald-900/50',
+            'Rose': 'bg-rose-100 dark:bg-rose-900/50',
+            'Sun': 'bg-amber-100 dark:bg-amber-900/50',
+        };
+        const frequencyList = {
+            'daily': 'Daily',
+            'weekly': 'Weekly',
+            'bi-weekly': 'Bi-weekly',
+            'monthly': 'Monthly',
+            'quarterly': 'Quarterly',
+            'annually': 'Annually'
+        };
+        const currencyOptions = { '₱': 'PHP', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY' };
+
+        // --- LOCAL STORAGE FUNCTIONS ---
+        function loadData() {
+            const savedGoals = localStorage.getItem('ipon-challenge-goals');
+            let savedSettings = localStorage.getItem('ipon-challenge-settings');
+            
+            goals = savedGoals ? JSON.parse(savedGoals) : [];
+            
+            let defaultSettings = { 
+                theme: 'system', 
+                cardColor: 'bg-gray-50 dark:bg-gray-700/50', 
+                currency: '₱', 
+                showOverallProgress: false, 
+                showGoalProgress: false 
+            };
+            
+            appSettings = savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+
+            // Ensure all settings keys exist for users with older data
+            if (appSettings.showOverallProgress === undefined) {
+                appSettings.showOverallProgress = false;
+            }
+            if (appSettings.showGoalProgress === undefined) {
+                appSettings.showGoalProgress = false;
+            }
+        }
+
+        function saveGoals() {
+            localStorage.setItem('ipon-challenge-goals', JSON.stringify(goals));
+        }
+
+        function saveSettings() {
+            localStorage.setItem('ipon-challenge-settings', JSON.stringify(appSettings));
+        }
+
+
+        // --- HELPERS ---
+        function showMessage(text, type = 'success') {
+            messageBox.textContent = text;
+            messageBox.className = 'fixed top-5 right-5 mt-4 p-3 text-center rounded-lg text-sm z-50 shadow-lg';
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-100', 'dark:bg-green-900', 'text-green-800', 'dark:text-green-200');
+            } else {
+                messageBox.classList.add('bg-red-100', 'dark:bg-red-900', 'text-red-800', 'dark:text-red-200');
+            }
+            messageBox.classList.remove('hidden');
+            setTimeout(() => messageBox.classList.add('hidden'), 3000);
+        }
+
+        function showView(viewId, isBackAction = false) {
+            const currentView = document.querySelector('.view.active').id;
+            if (!isBackAction) {
+                lastView = currentView;
+            }
+            
+            views.forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId)?.classList.add('active');
+            
+            const isTopLevelView = ['dashboard-view'].includes(viewId);
+            
+            if(isTopLevelView) {
+                backBtn.classList.add('hidden');
+                 headerTitle.textContent = 'Dashboard';
+            } else {
+                backBtn.classList.remove('hidden');
+                if (viewId === 'settings-view') {
+                    headerTitle.textContent = 'Settings';
+                } else if (viewId === 'goal-form-view') {
+                    headerTitle.textContent = goalIdInput.value ? 'Edit Goal' : 'Create New Goal';
+                } else {
+                    const goal = goals.find(g => g.id === goalDetailView.dataset.goalId);
+                    headerTitle.textContent = goal ? goal.goalName : 'Goal Details';
+                }
+            }
+            
+            footerBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === viewId || (viewId === 'goal-form-view' && btn.dataset.view === 'goal-form-view'));
+            });
+
+            if (viewId === 'dashboard-view') {
+                renderDashboard();
+            }
+        }
+        
+        // --- RENDER FUNCTIONS ---
+        function renderDashboard() {
+            renderGoalsList();
+            document.getElementById('overall-progress-container').style.display = appSettings.showOverallProgress ? 'block' : 'none';
+            if (appSettings.showOverallProgress) {
+                renderOverallChart();
+            }
+        }
+
+        function renderGoalsList() {
+            goalsGrid.innerHTML = '';
+            if (goals.length === 0) {
+                noGoalsMessage.classList.remove('hidden');
+            } else {
+                noGoalsMessage.classList.add('hidden');
+                goalsGrid.classList.remove('hidden');
+                goals.forEach(goal => {
+                    const current = goal.currentAmount || 0;
+                    const objective = goal.objectiveAmount || 1;
+                    const percentage = Math.min((current / objective) * 100, 100);
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-lg hover:scale-105 transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}`;
+                    card.dataset.goalId = goal.id;
+                    card.innerHTML = `
+                        <h3 class="font-bold truncate flex items-center gap-2">
+                            <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-5 h-5 text-indigo-500"></i>
+                            <span>${goal.goalName}</span>
+                        </h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${appSettings.currency}${current.toLocaleString()} / ${appSettings.currency}${objective.toLocaleString()}</p>
+                        <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 mt-2">
+                            <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => renderGoalDetail(goal));
+                    goalsGrid.appendChild(card);
+                });
+                lucide.createIcons();
+            }
+        }
+
+        function renderGoalDetail(goal) {
+            goalDetailView.dataset.goalId = goal.id;
+            const current = goal.currentAmount || 0;
+            const objective = goal.objectiveAmount || 1;
+            const percentage = Math.min((current / objective) * 100, 100);
+            
+            const remaining = objective - current;
+            let suggestionText = "🎉 Congratulations! You've reached your goal! 🎉";
+
+            if (remaining > 0) {
+                const endDate = new Date(goal.endDate);
+                const today = new Date();
+                endDate.setHours(0,0,0,0);
+                today.setHours(0,0,0,0);
+
+                const timeDiff = endDate.getTime() - today.getTime();
+                const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+
+                let periodsLeft = 1;
+                switch (goal.frequency) {
+                    case 'daily': periodsLeft = daysLeft; break;
+                    case 'weekly': periodsLeft = daysLeft / 7; break;
+                    case 'bi-weekly': periodsLeft = daysLeft / 14; break;
+                    case 'monthly': periodsLeft = daysLeft / 30.44; break;
+                    case 'quarterly': periodsLeft = daysLeft / 91.31; break;
+                    case 'annually': periodsLeft = daysLeft / 365.25; break;
+                }
+                
+                if (daysLeft <= 0) {
+                    suggestionText = "Your deadline has passed. Keep saving!";
+                } else if (periodsLeft > 0) {
+                    const suggestedAmount = remaining / periodsLeft;
+                    suggestionText = `Save ~${appSettings.currency}${suggestedAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${goal.frequency} to reach your goal.`;
+                } else {
+                    suggestionText = `Only ${daysLeft} days left to save ${appSettings.currency}${remaining.toLocaleString()}!`;
+                }
+            }
+            
+            goalDetailView.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="flex flex-col justify-center items-center ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'} rounded-xl p-6">
+                        <h2 class="text-2xl font-bold text-center truncate flex items-center justify-center gap-2">
+                             <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-8 h-8"></i>
+                             <span>${goal.goalName}</span>
+                        </h2>
+                        <div id="piggy-bank-wrapper" class="my-6 w-32 h-32 relative flex items-center justify-center">
+                            <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-full h-full text-pink-400 dark:text-pink-300"></i>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-4 mb-2">
+                            <div class="bg-gradient-to-r from-green-400 to-blue-500 h-4 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                        </div>
+                        <div class="w-full flex justify-between text-sm font-medium">
+                            <span>${appSettings.currency}${current.toLocaleString()}</span>
+                            <span>${appSettings.currency}${objective.toLocaleString()}</span>
+                        </div>
+                        <p class="text-center text-sm text-indigo-400 mt-3 font-medium h-10 flex items-center justify-center">${suggestionText}</p>
+                    </div>
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold">Actions</h3>
+                        <div class="relative">
+                           <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">${appSettings.currency}</span>
+                           <input type="number" id="add-amount-input" class="block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-lg p-3 pl-8" placeholder="Enter amount">
+                        </div>
+                        <button id="add-money-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i>
+                            <span>Add</span>
+                        </button>
+                        <button id="edit-goal-btn" class="w-full text-left p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="pencil" class="w-5 h-5"></i>Edit Goal Details</button>
+                        <button id="view-history-btn" class="w-full text-left p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="history" class="w-5 h-5"></i>View Transaction History</button>
+                        <button id="delete-goal-btn" class="w-full text-left p-3 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 flex items-center gap-3"><i data-lucide="trash-2" class="w-5 h-5"></i>Delete Goal</button>
+                    </div>
+                </div>
+                <div id="goal-progress-container" class="mt-6">
+                    <h3 class="text-xl font-semibold mb-2">Goal Progress</h3>
+                    <div class="p-4 rounded-xl">
+                        <canvas id="goal-chart"></canvas>
+                    </div>
+                </div>
+            `;
+            document.getElementById('add-money-btn').addEventListener('click', () => handleAddMoney(goal.id));
+            document.getElementById('edit-goal-btn').addEventListener('click', () => showGoalForm(goal));
+            document.getElementById('view-history-btn').addEventListener('click', () => renderHistory(goal));
+            document.getElementById('delete-goal-btn').addEventListener('click', () => openDeleteModal(goal.id));
+            lucide.createIcons();
+            showView('goal-detail-view');
+            document.getElementById('goal-progress-container').style.display = appSettings.showGoalProgress ? 'block' : 'none';
+            if(appSettings.showGoalProgress) {
+                renderGoalChart(goal);
+            }
+        }
+        
+        function renderHistory(goal) {
+            let historyHTML = `<h2 class="text-2xl font-bold mb-4">History for ${goal.goalName}</h2>`;
+            if (!goal.transactions || goal.transactions.length === 0) {
+                historyHTML += '<p>No transactions yet.</p>';
+            } else {
+                const sorted = [...goal.transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
+                historyHTML += '<div class="space-y-2">';
+                sorted.forEach(tx => {
+                    historyHTML += `<div class="flex justify-between items-center p-2 rounded-lg ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}">
+                        <span class="font-semibold text-green-500">+ ${appSettings.currency}${tx.amount.toLocaleString()}</span>
+                        <span class="text-xs text-gray-500">${new Date(tx.date).toLocaleDateString()}</span>
+                    </div>`;
+                });
+                historyHTML += '</div>';
+            }
+            historyView.innerHTML = historyHTML;
+            showView('history-view');
+        }
+
+        function showGoalForm(goal = null) {
+            iconSelectionGrid.innerHTML = '';
+            iconList.forEach(iconName => {
+                const btn = document.createElement('button');
+                btn.className = 'icon-choice p-2 rounded-lg ring-2 ring-transparent hover:bg-gray-200 dark:hover:bg-gray-700';
+                btn.dataset.icon = iconName;
+                btn.innerHTML = `<i data-lucide="${iconName}" class="w-6 h-6 mx-auto"></i>`;
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.querySelectorAll('.icon-choice').forEach(b => b.classList.remove('selected', 'ring-blue-400'));
+                    btn.classList.add('selected', 'ring-blue-400');
+                    iconInput.value = iconName;
+                    changeIconBtn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
+                    lucide.createIcons();
+                    iconSelectionContainer.classList.add('hidden');
+                });
+                iconSelectionGrid.appendChild(btn);
+            });
+
+            if (goal) { // Editing
+                formTitle.textContent = 'Edit Goal';
+                goalIdInput.value = goal.id;
+                goalNameInput.value = goal.goalName;
+                objectiveAmountInput.value = goal.objectiveAmount;
+                endDateInput.value = goal.endDate;
+                frequencyInput.value = goal.frequency;
+                iconInput.value = goal.icon || 'piggy-bank';
+            } else { // Creating
+                formTitle.textContent = 'Create New Goal';
+                goalIdInput.value = '';
+                goalNameInput.value = '';
+                objectiveAmountInput.value = '';
+                endDateInput.value = '';
+                frequencyInput.value = 'weekly';
+                iconInput.value = 'piggy-bank';
+            }
+            
+            buildFrequencySelector(frequencyInput.value);
+            changeIconBtn.innerHTML = `<i data-lucide="${iconInput.value}" class="w-5 h-5"></i>`;
+            const currentIconBtn = iconSelectionGrid.querySelector(`[data-icon="${iconInput.value}"]`);
+            if (currentIconBtn) {
+                currentIconBtn.classList.add('selected', 'ring-blue-400');
+            }
+
+            lucide.createIcons();
+            showView('goal-form-view');
+        }
+        
+        // --- SETTINGS FUNCTIONS ---
+        function applySettings() {
+            if (appSettings.theme === 'dark' || (appSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            document.querySelectorAll('.currency-symbol').forEach(el => el.textContent = appSettings.currency);
+            renderGoalsList();
+            renderSettingsUI();
+        }
+
+        function renderSettingsUI() {
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.theme === appSettings.theme);
+            });
+            
+            currencySelect.innerHTML = '';
+            Object.entries(currencyOptions).forEach(([symbol, code]) => {
+                const option = document.createElement('option');
+                option.value = symbol;
+                option.textContent = `${symbol} (${code})`;
+                if (appSettings.currency === symbol) {
+                    option.selected = true;
+                }
+                currencySelect.appendChild(option);
+            });
+            
+            colorSelectionGrid.innerHTML = '';
+            Object.entries(colorOptions).forEach(([name, className]) => {
+                const btn = document.createElement('button');
+                const bgColor = document.documentElement.classList.contains('dark') ? className.split(' ')[1] : className.split(' ')[0];
+                btn.className = `color-choice w-12 h-12 rounded-full ${bgColor} ring-2 ring-transparent`;
+                btn.dataset.colorClass = className;
+                if (appSettings.cardColor === className) {
+                    btn.classList.add('selected', 'ring-blue-400');
+                }
+                btn.addEventListener('click', () => {
+                    appSettings.cardColor = className;
+                    saveSettings();
+                    applySettings();
+                });
+                colorSelectionGrid.appendChild(btn);
+            });
+            
+            if (appSettings.showOverallProgress) {
+                toggleOverallProgressBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                toggleOverallProgressBtn.classList.add('bg-green-500');
+                toggleOverallProgressHandle.classList.add('translate-x-5');
+            } else {
+                toggleOverallProgressBtn.classList.remove('bg-green-500');
+                toggleOverallProgressBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                toggleOverallProgressHandle.classList.remove('translate-x-5');
+            }
+            
+            if (appSettings.showGoalProgress) {
+                toggleGoalProgressBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                toggleGoalProgressBtn.classList.add('bg-green-500');
+                toggleGoalProgressHandle.classList.add('translate-x-5');
+            } else {
+                toggleGoalProgressBtn.classList.remove('bg-green-500');
+                toggleGoalProgressBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                toggleGoalProgressHandle.classList.remove('translate-x-5');
+            }
+        }
+        
+        // --- CHART FUNCTIONS ---
+        function getChartOptions() {
+            const isDark = document.documentElement.classList.contains('dark');
+            return {
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: { color: isDark ? '#9ca3af' : '#4b5563' }
+                    },
+                    x: { ticks: { color: isDark ? '#9ca3af' : '#4b5563' } }
+                },
+                plugins: { legend: { labels: { color: isDark ? '#e5e7eb' : '#1f2937' } } }
+            };
+        }
+
+        function renderOverallChart() {
+            const ctx = document.getElementById('overall-chart').getContext('2d');
+            if (overallChartInstance) {
+                overallChartInstance.destroy();
+            }
+            const allTransactions = goals.flatMap(g => g.transactions || []);
+            allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            const labels = [];
+            const data = [];
+            let cumulativeAmount = 0;
+            
+            allTransactions.forEach(tx => {
+                cumulativeAmount += tx.amount;
+                labels.push(new Date(tx.date).toLocaleDateString());
+                data.push(cumulativeAmount);
+            });
+
+            overallChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Total Savings (${appSettings.currency})`,
+                        data: data,
+                        backgroundColor: 'rgba(79, 70, 229, 0.5)',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1
+                    }]
+                },
+                options: getChartOptions()
+            });
+        }
+
+        function renderGoalChart(goal) {
+            const ctx = document.getElementById('goal-chart').getContext('2d');
+            if (goalChartInstance) {
+                goalChartInstance.destroy();
+            }
+            const transactions = (goal.transactions || []).sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            const labels = [];
+            const data = [];
+            let cumulativeAmount = 0;
+
+            transactions.forEach(tx => {
+                cumulativeAmount += tx.amount;
+                labels.push(new Date(tx.date).toLocaleDateString());
+                data.push(cumulativeAmount);
+            });
+
+            goalChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Savings (${appSettings.currency})`,
+                        data: data,
+                        backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1
+                    }]
+                },
+                options: getChartOptions()
+            });
+        }
+
+
+        // --- CUSTOM DROPDOWN ---
+        function buildFrequencySelector(selectedValue) {
+            frequencySelectionGrid.innerHTML = '';
+            Object.entries(frequencyList).forEach(([value, text]) => {
+                const btn = document.createElement('button');
+                btn.className = 'frequency-btn p-3 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700';
+                btn.dataset.value = value;
+                btn.textContent = text;
+                if (value === selectedValue) {
+                    btn.classList.add('selected', 'ring-blue-400');
+                }
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    frequencyInput.value = value;
+                    document.querySelectorAll('.frequency-btn').forEach(b => b.classList.remove('selected', 'ring-blue-400'));
+                    btn.classList.add('selected', 'ring-blue-400');
+                });
+                frequencySelectionGrid.appendChild(btn);
+            });
+        }
+
+        // --- EVENT HANDLERS & ACTIONS ---
+        footerBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                if (view === 'goal-form-view') {
+                    showGoalForm();
+                } else {
+                    showView(view);
+                }
+            });
+        });
+        
+        cancelGoalFormBtn.addEventListener('click', () => showView('dashboard-view'));
+        backBtn.addEventListener('click', () => showView(lastView, true));
+
+
+        changeIconBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            iconSelectionContainer.classList.toggle('hidden');
+        });
+
+        themeButtons.addEventListener('click', (e) => {
+            const theme = e.target.closest('.theme-btn')?.dataset.theme;
+            if (theme) {
+                appSettings.theme = theme;
+                saveSettings();
+                applySettings();
+            }
+        });
+        
+        currencySelect.addEventListener('change', (e) => {
+            appSettings.currency = e.target.value;
+            saveSettings();
+            applySettings();
+        });
+        
+        toggleOverallProgressBtn.addEventListener('click', () => {
+            appSettings.showOverallProgress = !appSettings.showOverallProgress;
+            saveSettings();
+            applySettings();
+        });
+        
+        toggleGoalProgressBtn.addEventListener('click', () => {
+            appSettings.showGoalProgress = !appSettings.showGoalProgress;
+            saveSettings();
+            applySettings();
+        });
+
+
+        saveGoalBtn.addEventListener('click', () => {
+            const id = goalIdInput.value;
+            const data = {
+                goalName: goalNameInput.value || 'Untitled Goal',
+                objectiveAmount: parseFloat(objectiveAmountInput.value) || 0,
+                endDate: endDateInput.value,
+                frequency: frequencyInput.value,
+                icon: iconInput.value || 'piggy-bank'
+            };
+            if (!data.endDate || data.objectiveAmount <= 0) {
+                showMessage("Please fill in a valid target amount and end date.", "error");
+                return;
+            }
+            if (id) {
+                const goalIndex = goals.findIndex(g => g.id === id);
+                if (goalIndex > -1) {
+                    goals[goalIndex] = { ...goals[goalIndex], ...data };
+                }
+            } else {
+                data.id = `goal_${new Date().getTime()}`;
+                data.currentAmount = 0;
+                data.transactions = [];
+                goals.push(data);
+            }
+            saveGoals();
+            renderGoalsList();
+            showMessage("Goal saved successfully!", "success");
+            showView('dashboard-view');
+        });
+
+        function handleAddMoney(goalId) {
+            const amountInput = document.getElementById('add-amount-input');
+            const amount = parseFloat(amountInput.value);
+            if (isNaN(amount) || amount <= 0) {
+                showMessage("Please enter a valid amount.", "error"); return;
+            }
+            const goalIndex = goals.findIndex(g => g.id === goalId);
+            if (goalIndex === -1) return;
+
+            goals[goalIndex].currentAmount = (goals[goalIndex].currentAmount || 0) + amount;
+            const newTransaction = { amount, date: new Date().toISOString() };
+            goals[goalIndex].transactions = [...(goals[goalIndex].transactions || []), newTransaction];
+
+            saveGoals();
+            renderGoalDetail(goals[goalIndex]);
+            
+            amountInput.value = '';
+            const piggyWrapper = document.getElementById('piggy-bank-wrapper');
+            piggyWrapper?.classList.add('shake-animation');
+            setTimeout(() => piggyWrapper?.classList.remove('shake-animation'), 500);
+        }
+
+        function openDeleteModal(id) {
+            goalToDeleteId = id;
+            deleteModal.classList.remove('hidden');
+        }
+        cancelDeleteBtn.addEventListener('click', () => deleteModal.classList.add('hidden'));
+        confirmDeleteBtn.addEventListener('click', () => {
+            if (!goalToDeleteId) return;
+            goals = goals.filter(g => g.id !== goalToDeleteId);
+            saveGoals();
+            renderGoalsList();
+            showMessage("Goal deleted.", "success");
+            deleteModal.classList.add('hidden');
+            showView('dashboard-view');
+        });
+
+        // --- INITIALIZATION ---
+        endDateInput.min = new Date().toISOString().split("T")[0];
+        loadData();
+        applySettings();
+        lucide.createIcons();
+        showView('dashboard-view');
+        
+        // Listen for system theme changes to update the UI in real-time
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (appSettings.theme === 'system') {
+                applySettings();
+            }
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!changeIconBtn.contains(e.target) && !iconSelectionContainer.contains(e.target)) {
+                iconSelectionContainer.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
