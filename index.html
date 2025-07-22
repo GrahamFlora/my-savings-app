@@ -31,21 +31,21 @@
         .shake-animation { animation: shake 0.5s ease-in-out; }
         
         /* Icon and Color selection style */
-        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected, .filter-btn.selected {
+        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected {
             --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
             --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
             box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
             --tw-ring-color: #60a5fa;
             --tw-ring-offset-width: 2px;
         }
-        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected, .dark .filter-btn.selected {
+        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected {
             --tw-ring-offset-color: #1f2937;
         }
-        .theme-btn.selected {
+        .theme-btn.selected, .filter-btn.selected {
             background-color: #4f46e5;
             color: white;
         }
-        .dark .theme-btn.selected {
+        .dark .theme-btn.selected, .dark .filter-btn.selected {
              background-color: #a5b4fc;
              color: #1e1b4b;
         }
@@ -54,31 +54,6 @@
         }
         .dark .footer-btn.active {
             color: #a5b4fc;
-        }
-        
-        /* Swipe to delete styles */
-        .goal-card-container {
-            position: relative;
-            overflow: hidden;
-            border-radius: 0.75rem; /* rounded-xl */
-        }
-        .goal-card-content {
-            transition: transform 0.3s ease-out;
-            position: relative;
-            z-index: 10;
-            width: 100%;
-        }
-        .delete-action {
-            position: absolute;
-            top: 0;
-            right: 0;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 80px;
-            background-color: #ef4444; /* red-500 */
-            color: white;
         }
 
     </style>
@@ -98,9 +73,9 @@
         <main class="p-6 md:p-8 no-scrollbar flex-grow overflow-y-auto">
             <!-- View: Dashboard -->
             <div id="dashboard-view" class="view active">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-4">
                     <h2 class="text-2xl font-bold">My Goals</h2>
-                    <div id="filter-buttons" class="flex-shrink-0 flex items-center gap-2 p-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                    <div id="filter-buttons" class="flex-shrink-0 w-full md:w-auto grid grid-cols-3 md:flex items-center gap-1 p-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
                         <!-- Filter buttons will be inserted here -->
                     </div>
                 </div>
@@ -299,7 +274,6 @@
         let overallChartInstance = null;
         let goalChartInstance = null;
         let activeFilter = 'all';
-        let swipedCard = null;
         
         const iconList = ['piggy-bank', 'laptop', 'car', 'home', 'plane', 'gift', 'book-open', 'briefcase', 'graduation-cap', 'heart', 'camera', 'gamepad-2'];
         const colorOptions = {
@@ -428,17 +402,14 @@
                     const current = goal.currentAmount || 0;
                     const objective = goal.objectiveAmount || 1;
                     const percentage = Math.min((current / objective) * 100, 100);
-                    
-                    const container = document.createElement('div');
-                    container.className = 'goal-card-container';
-
-                    container.innerHTML = `
-                        <div class="delete-action">
-                            <button data-id="${goal.id}" class="delete-btn p-4 rounded-full hover:bg-red-600">
-                                <i data-lucide="trash-2" class="w-6 h-6"></i>
-                            </button>
-                        </div>
-                        <div class="goal-card-content p-4 rounded-xl shadow-sm cursor-pointer transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}">
+                    const card = document.createElement('div');
+                    card.className = `relative p-4 rounded-xl shadow-sm cursor-pointer transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}`;
+                    card.dataset.goalId = goal.id;
+                    card.innerHTML = `
+                        <button data-id="${goal.id}" class="delete-btn absolute top-2 right-2 p-1 text-red-500 hover:text-red-700">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        <div class="goal-card-content">
                             <h3 class="font-bold truncate flex items-center gap-2">
                                 <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-5 h-5 text-indigo-500"></i>
                                 <span>${goal.goalName}</span>
@@ -450,17 +421,12 @@
                         </div>
                     `;
                     
-                    const content = container.querySelector('.goal-card-content');
-                    content.addEventListener('click', () => {
-                        if (content.style.transform !== 'translateX(-80px)') {
-                           renderGoalDetail(goal);
-                        } else {
-                           content.style.transform = 'translateX(0px)';
-                           swipedCard = null;
-                        }
+                    card.querySelector('.goal-card-content').addEventListener('click', () => renderGoalDetail(goal));
+                    card.querySelector('.delete-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openDeleteModal(goal.id);
                     });
-                    addSwipeToDelete(container);
-                    goalsGrid.appendChild(container);
+                    goalsGrid.appendChild(card);
                 });
                 lucide.createIcons();
             }
@@ -800,7 +766,7 @@
             filterButtonsContainer.innerHTML = '';
             ['all', 'active', 'completed'].forEach(filter => {
                 const btn = document.createElement('button');
-                btn.className = 'filter-btn px-3 py-1 text-sm rounded-md';
+                btn.className = 'filter-btn px-3 py-1 text-sm rounded-md w-full';
                 btn.dataset.filter = filter;
                 btn.textContent = filter.charAt(0).toUpperCase() + filter.slice(1);
                 if (filter === activeFilter) {
@@ -932,54 +898,6 @@
             deleteModal.classList.add('hidden');
             showView('dashboard-view');
         });
-        
-        function addSwipeToDelete(container) {
-            const content = container.querySelector('.goal-card-content');
-            const deleteBtn = container.querySelector('.delete-btn');
-            
-            let startX = 0;
-            let currentX = 0;
-            let isSwiping = false;
-
-            container.addEventListener('touchstart', (e) => {
-                if (swipedCard && swipedCard !== content) {
-                    swipedCard.style.transform = 'translateX(0px)';
-                }
-                startX = e.touches[0].clientX;
-                isSwiping = true;
-                content.style.transition = 'none';
-            });
-
-            container.addEventListener('touchmove', (e) => {
-                if (!isSwiping) return;
-                currentX = e.touches[0].clientX;
-                const diff = currentX - startX;
-                if (diff < 0 && diff > -100) { // Only swipe left
-                    content.style.transform = `translateX(${diff}px)`;
-                }
-            });
-
-            container.addEventListener('touchend', (e) => {
-                if (!isSwiping) return;
-                isSwiping = false;
-                content.style.transition = 'transform 0.3s ease-out';
-                const diff = currentX - startX;
-                if (diff < -40) {
-                    content.style.transform = 'translateX(-80px)';
-                    swipedCard = content;
-                } else {
-                    content.style.transform = 'translateX(0px)';
-                    swipedCard = null;
-                }
-            });
-            
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const goalId = e.currentTarget.dataset.id;
-                openDeleteModal(goalId);
-            });
-        }
-
 
         // --- INITIALIZATION ---
         endDateInput.min = new Date().toISOString().split("T")[0];
