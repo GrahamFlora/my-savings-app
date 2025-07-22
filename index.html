@@ -31,14 +31,14 @@
         .shake-animation { animation: shake 0.5s ease-in-out; }
         
         /* Icon and Color selection style */
-        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected {
+        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected, .filter-btn.selected {
             --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
             --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
             box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
             --tw-ring-color: #60a5fa;
             --tw-ring-offset-width: 2px;
         }
-        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected {
+        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected, .dark .filter-btn.selected {
             --tw-ring-offset-color: #1f2937;
         }
         .theme-btn.selected {
@@ -54,6 +54,31 @@
         }
         .dark .footer-btn.active {
             color: #a5b4fc;
+        }
+        
+        /* Swipe to delete styles */
+        .goal-card-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.75rem; /* rounded-xl */
+        }
+        .goal-card-content {
+            transition: transform 0.3s ease-out;
+            position: relative;
+            z-index: 10;
+            width: 100%;
+        }
+        .delete-action {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            background-color: #ef4444; /* red-500 */
+            color: white;
         }
 
     </style>
@@ -73,7 +98,12 @@
         <main class="p-6 md:p-8 no-scrollbar flex-grow overflow-y-auto">
             <!-- View: Dashboard -->
             <div id="dashboard-view" class="view active">
-                <h2 class="text-2xl font-bold mb-4">My Goals</h2>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                    <h2 class="text-2xl font-bold">My Goals</h2>
+                    <div id="filter-buttons" class="flex-shrink-0 flex items-center gap-2 p-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                        <!-- Filter buttons will be inserted here -->
+                    </div>
+                </div>
                 <div id="goals-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Goal cards will be inserted here -->
                 </div>
@@ -84,7 +114,7 @@
                 </div>
                  <div id="overall-progress-container" class="mt-8">
                     <h2 class="text-2xl font-bold mb-2">Overall Progress</h2>
-                    <div class="p-4 rounded-xl">
+                    <div class="p-4 rounded-xl relative" style="min-height: 300px;">
                         <canvas id="overall-chart"></canvas>
                     </div>
                 </div>
@@ -237,6 +267,7 @@
         const headerTitle = document.getElementById('header-title');
         const backBtn = document.getElementById('back-btn');
         const footerBtns = document.querySelectorAll('.footer-btn');
+        const filterButtonsContainer = document.getElementById('filter-buttons');
 
         // Form Inputs
         const formTitle = document.getElementById('form-title');
@@ -267,6 +298,8 @@
         let lastView = 'dashboard-view';
         let overallChartInstance = null;
         let goalChartInstance = null;
+        let activeFilter = 'all';
+        let swipedCard = null;
         
         const iconList = ['piggy-bank', 'laptop', 'car', 'home', 'plane', 'gift', 'book-open', 'briefcase', 'graduation-cap', 'heart', 'camera', 'gamepad-2'];
         const colorOptions = {
@@ -303,13 +336,8 @@
             
             appSettings = savedSettings ? JSON.parse(savedSettings) : defaultSettings;
 
-            // Ensure all settings keys exist for users with older data
-            if (appSettings.showOverallProgress === undefined) {
-                appSettings.showOverallProgress = false;
-            }
-            if (appSettings.showGoalProgress === undefined) {
-                appSettings.showGoalProgress = false;
-            }
+            if (appSettings.showOverallProgress === undefined) appSettings.showOverallProgress = false;
+            if (appSettings.showGoalProgress === undefined) appSettings.showGoalProgress = false;
         }
 
         function saveGoals() {
@@ -380,30 +408,59 @@
 
         function renderGoalsList() {
             goalsGrid.innerHTML = '';
-            if (goals.length === 0) {
+            
+            const filteredGoals = goals.filter(goal => {
+                if (activeFilter === 'active') {
+                    return (goal.currentAmount || 0) < goal.objectiveAmount;
+                }
+                if (activeFilter === 'completed') {
+                    return (goal.currentAmount || 0) >= goal.objectiveAmount;
+                }
+                return true; // 'all'
+            });
+
+            if (filteredGoals.length === 0) {
                 noGoalsMessage.classList.remove('hidden');
             } else {
                 noGoalsMessage.classList.add('hidden');
                 goalsGrid.classList.remove('hidden');
-                goals.forEach(goal => {
+                filteredGoals.forEach(goal => {
                     const current = goal.currentAmount || 0;
                     const objective = goal.objectiveAmount || 1;
                     const percentage = Math.min((current / objective) * 100, 100);
-                    const card = document.createElement('div');
-                    card.className = `p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-lg hover:scale-105 transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}`;
-                    card.dataset.goalId = goal.id;
-                    card.innerHTML = `
-                        <h3 class="font-bold truncate flex items-center gap-2">
-                            <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-5 h-5 text-indigo-500"></i>
-                            <span>${goal.goalName}</span>
-                        </h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${appSettings.currency}${current.toLocaleString()} / ${appSettings.currency}${objective.toLocaleString()}</p>
-                        <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 mt-2">
-                            <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                    
+                    const container = document.createElement('div');
+                    container.className = 'goal-card-container';
+
+                    container.innerHTML = `
+                        <div class="delete-action">
+                            <button data-id="${goal.id}" class="delete-btn p-4 rounded-full hover:bg-red-600">
+                                <i data-lucide="trash-2" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                        <div class="goal-card-content p-4 rounded-xl shadow-sm cursor-pointer transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}">
+                            <h3 class="font-bold truncate flex items-center gap-2">
+                                <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-5 h-5 text-indigo-500"></i>
+                                <span>${goal.goalName}</span>
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${appSettings.currency}${current.toLocaleString()} / ${appSettings.currency}${objective.toLocaleString()}</p>
+                            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 mt-2">
+                                <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                            </div>
                         </div>
                     `;
-                    card.addEventListener('click', () => renderGoalDetail(goal));
-                    goalsGrid.appendChild(card);
+                    
+                    const content = container.querySelector('.goal-card-content');
+                    content.addEventListener('click', () => {
+                        if (content.style.transform !== 'translateX(-80px)') {
+                           renderGoalDetail(goal);
+                        } else {
+                           content.style.transform = 'translateX(0px)';
+                           swipedCard = null;
+                        }
+                    });
+                    addSwipeToDelete(container);
+                    goalsGrid.appendChild(container);
                 });
                 lucide.createIcons();
             }
@@ -637,6 +694,8 @@
         function getChartOptions() {
             const isDark = document.documentElement.classList.contains('dark');
             return {
+                responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     y: { 
                         beginAtZero: true,
@@ -716,7 +775,7 @@
         }
 
 
-        // --- CUSTOM DROPDOWN ---
+        // --- CUSTOM UI ---
         function buildFrequencySelector(selectedValue) {
             frequencySelectionGrid.innerHTML = '';
             Object.entries(frequencyList).forEach(([value, text]) => {
@@ -734,6 +793,26 @@
                     btn.classList.add('selected', 'ring-blue-400');
                 });
                 frequencySelectionGrid.appendChild(btn);
+            });
+        }
+        
+        function buildFilterButtons() {
+            filterButtonsContainer.innerHTML = '';
+            ['all', 'active', 'completed'].forEach(filter => {
+                const btn = document.createElement('button');
+                btn.className = 'filter-btn px-3 py-1 text-sm rounded-md';
+                btn.dataset.filter = filter;
+                btn.textContent = filter.charAt(0).toUpperCase() + filter.slice(1);
+                if (filter === activeFilter) {
+                    btn.classList.add('selected', 'ring-blue-400');
+                }
+                btn.addEventListener('click', () => {
+                    activeFilter = filter;
+                    renderGoalsList();
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('selected', 'ring-blue-400'));
+                    btn.classList.add('selected', 'ring-blue-400');
+                });
+                filterButtonsContainer.appendChild(btn);
             });
         }
 
@@ -793,7 +872,8 @@
                 objectiveAmount: parseFloat(objectiveAmountInput.value) || 0,
                 endDate: endDateInput.value,
                 frequency: frequencyInput.value,
-                icon: iconInput.value || 'piggy-bank'
+                icon: iconInput.value || 'piggy-bank',
+                createdAt: new Date().toISOString()
             };
             if (!data.endDate || data.objectiveAmount <= 0) {
                 showMessage("Please fill in a valid target amount and end date.", "error");
@@ -852,11 +932,60 @@
             deleteModal.classList.add('hidden');
             showView('dashboard-view');
         });
+        
+        function addSwipeToDelete(container) {
+            const content = container.querySelector('.goal-card-content');
+            const deleteBtn = container.querySelector('.delete-btn');
+            
+            let startX = 0;
+            let currentX = 0;
+            let isSwiping = false;
+
+            container.addEventListener('touchstart', (e) => {
+                if (swipedCard && swipedCard !== content) {
+                    swipedCard.style.transform = 'translateX(0px)';
+                }
+                startX = e.touches[0].clientX;
+                isSwiping = true;
+                content.style.transition = 'none';
+            });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isSwiping) return;
+                currentX = e.touches[0].clientX;
+                const diff = currentX - startX;
+                if (diff < 0 && diff > -100) { // Only swipe left
+                    content.style.transform = `translateX(${diff}px)`;
+                }
+            });
+
+            container.addEventListener('touchend', (e) => {
+                if (!isSwiping) return;
+                isSwiping = false;
+                content.style.transition = 'transform 0.3s ease-out';
+                const diff = currentX - startX;
+                if (diff < -40) {
+                    content.style.transform = 'translateX(-80px)';
+                    swipedCard = content;
+                } else {
+                    content.style.transform = 'translateX(0px)';
+                    swipedCard = null;
+                }
+            });
+            
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const goalId = e.currentTarget.dataset.id;
+                openDeleteModal(goalId);
+            });
+        }
+
 
         // --- INITIALIZATION ---
         endDateInput.min = new Date().toISOString().split("T")[0];
         loadData();
         applySettings();
+        buildFilterButtons();
         lucide.createIcons();
         showView('dashboard-view');
         
