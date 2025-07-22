@@ -31,21 +31,21 @@
         .shake-animation { animation: shake 0.5s ease-in-out; }
         
         /* Icon and Color selection style */
-        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected {
+        .icon-choice.selected, .color-choice.selected, .frequency-btn.selected, .filter-btn.selected {
             --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
             --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
             box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
             --tw-ring-color: #60a5fa;
             --tw-ring-offset-width: 2px;
         }
-        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected {
+        .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected, .dark .filter-btn.selected {
             --tw-ring-offset-color: #1f2937;
         }
-        .theme-btn.selected, .filter-btn.selected {
+        .theme-btn.selected {
             background-color: #4f46e5;
             color: white;
         }
-        .dark .theme-btn.selected, .dark .filter-btn.selected {
+        .dark .theme-btn.selected {
              background-color: #a5b4fc;
              color: #1e1b4b;
         }
@@ -402,14 +402,34 @@
                     const current = goal.currentAmount || 0;
                     const objective = goal.objectiveAmount || 1;
                     const percentage = Math.min((current / objective) * 100, 100);
+                    const isCompleted = current >= objective;
+                    
+                    let footerHTML = '';
+                    if (isCompleted) {
+                        footerHTML = `
+                            <div class="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                <span>Completed!</span>
+                            </div>
+                        `;
+                    } else {
+                        const formattedDate = new Date(goal.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        footerHTML = `
+                            <div class="mt-2 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>Due: ${formattedDate}</span>
+                            </div>
+                        `;
+                    }
+                    
                     const card = document.createElement('div');
-                    card.className = `relative p-4 rounded-xl shadow-sm cursor-pointer transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}`;
+                    card.className = `relative p-4 rounded-xl shadow-sm transition-all ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}`;
                     card.dataset.goalId = goal.id;
                     card.innerHTML = `
-                        <button data-id="${goal.id}" class="delete-btn absolute top-2 right-2 p-1 text-red-500 hover:text-red-700">
+                        <button data-id="${goal.id}" class="delete-btn absolute top-2 right-2 p-1 text-red-500 hover:text-red-700 z-10">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
-                        <div class="goal-card-content">
+                        <div class="goal-card-content cursor-pointer">
                             <h3 class="font-bold truncate flex items-center gap-2">
                                 <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-5 h-5 text-indigo-500"></i>
                                 <span>${goal.goalName}</span>
@@ -418,6 +438,7 @@
                             <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 mt-2">
                                 <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
                             </div>
+                            ${footerHTML}
                         </div>
                     `;
                     
