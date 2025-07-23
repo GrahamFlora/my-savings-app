@@ -388,14 +388,14 @@
         // --- RENDER FUNCTIONS ---
         function renderDashboard() {
             renderGoalsList();
-            const progressContainer = document.getElementById('overall-progress-container');
-            progressContainer.style.display = appSettings.showOverallProgress ? 'block' : 'none';
+            document.getElementById('overall-progress-container').style.display = appSettings.showOverallProgress ? 'block' : 'none';
             if (appSettings.showOverallProgress) {
                 renderOverallChart();
                 renderOverallTable(1);
-                progressContainer.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
-                progressContainer.querySelector('#overall-chart-container').classList.add('hidden');
-                progressContainer.querySelector('#overall-table-container').classList.remove('hidden');
+                const container = document.getElementById('overall-progress-container');
+                container.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
+                container.querySelector('#overall-chart-container').classList.add('hidden');
+                container.querySelector('#overall-table-container').classList.remove('hidden');
             }
         }
 
@@ -432,12 +432,11 @@
                             </div>
                         `;
                     } else {
-                        const paymentStatus = calculatePaymentStatus(goal);
-                        const formattedDate = paymentStatus.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const formattedDate = new Date(goal.targetDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                         footerHTML = `
                             <div class="mt-2 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                <i data-lucide="calendar-clock" class="w-4 h-4"></i>
-                                <span>Next: ${formattedDate}</span>
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>Due: ${formattedDate}</span>
                             </div>
                         `;
                     }
