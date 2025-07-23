@@ -41,11 +41,11 @@
         .dark .icon-choice.selected, .dark .color-choice.selected, .dark .frequency-btn.selected, .dark .filter-btn.selected, .dark .progress-view-btn.selected {
             --tw-ring-offset-color: #1f2937;
         }
-        .theme-btn.selected {
+        .theme-btn.selected, .page-btn.active {
             background-color: #4f46e5;
             color: white;
         }
-        .dark .theme-btn.selected {
+        .dark .theme-btn.selected, .dark .page-btn.active {
              background-color: #a5b4fc;
              color: #1e1b4b;
         }
@@ -88,9 +88,18 @@
                     <p class="text-gray-500 mt-2">Click "Add Goal" to start your first savings challenge.</p>
                 </div>
                  <div id="overall-progress-container" class="mt-8">
-                    <h2 class="text-2xl font-bold mb-2">Overall Progress</h2>
-                    <div class="p-4 rounded-xl relative" style="min-height: 300px;">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-2xl font-bold">Overall Progress</h2>
+                        <div id="overall-progress-view-toggle" class="flex items-center gap-1 p-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                            <button data-view="table" class="progress-view-btn p-1 rounded-md"><i data-lucide="table" class="w-5 h-5"></i></button>
+                            <button data-view="graph" class="progress-view-btn p-1 rounded-md"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <div id="overall-chart-container" class="p-4 rounded-xl relative" style="min-height: 300px;">
                         <canvas id="overall-chart"></canvas>
+                    </div>
+                    <div id="overall-table-container" class="hidden p-4 rounded-xl">
+                        <!-- Overall table will be inserted here -->
                     </div>
                 </div>
             </div>
@@ -276,6 +285,8 @@
         let overallChartInstance = null;
         let goalChartInstance = null;
         let activeFilter = 'all';
+        let goalTableSortConfig = { key: 'date', direction: 'descending' };
+        let overallTableSortConfig = { key: 'date', direction: 'descending' };
         
         const iconList = ['piggy-bank', 'laptop', 'car', 'home', 'plane', 'gift', 'book-open', 'briefcase', 'graduation-cap', 'heart', 'camera', 'gamepad-2'];
         const colorOptions = {
@@ -340,7 +351,9 @@
 
         function showView(viewId, isBackAction = false) {
             if (!isBackAction) {
-                viewStack.push(viewId);
+                if (viewStack[viewStack.length - 1] !== viewId) {
+                    viewStack.push(viewId);
+                }
             }
             
             views.forEach(v => v.classList.remove('active'));
@@ -375,9 +388,14 @@
         // --- RENDER FUNCTIONS ---
         function renderDashboard() {
             renderGoalsList();
-            document.getElementById('overall-progress-container').style.display = appSettings.showOverallProgress ? 'block' : 'none';
+            const progressContainer = document.getElementById('overall-progress-container');
+            progressContainer.style.display = appSettings.showOverallProgress ? 'block' : 'none';
             if (appSettings.showOverallProgress) {
                 renderOverallChart();
+                renderOverallTable(1);
+                progressContainer.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
+                progressContainer.querySelector('#overall-chart-container').classList.add('hidden');
+                progressContainer.querySelector('#overall-table-container').classList.remove('hidden');
             }
         }
 
@@ -414,11 +432,12 @@
                             </div>
                         `;
                     } else {
-                        const formattedDate = new Date(goal.targetDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const paymentStatus = calculatePaymentStatus(goal);
+                        const formattedDate = paymentStatus.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                         footerHTML = `
                             <div class="mt-2 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                <i data-lucide="calendar" class="w-4 h-4"></i>
-                                <span>Due: ${formattedDate}</span>
+                                <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                                <span>Next: ${formattedDate}</span>
                             </div>
                         `;
                     }
@@ -460,45 +479,27 @@
             const objective = goal.objectiveAmount || 1;
             const percentage = Math.min((current / objective) * 100, 100);
             
-            const remaining = objective - current;
+            const paymentStatus = calculatePaymentStatus(goal);
             let suggestionText = "🎉 Congratulations! You've reached your goal! 🎉";
+            let nextDueDateHTML = '';
 
-            if (remaining > 0) {
-                const endDate = new Date(goal.targetDate);
-                const today = new Date();
-                endDate.setHours(0,0,0,0);
-                today.setHours(0,0,0,0);
-
-                const timeDiff = endDate.getTime() - today.getTime();
-                const daysLeft = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
-
-                let periodsLeft = 1;
-                switch (goal.frequency) {
-                    case 'daily': periodsLeft = daysLeft; break;
-                    case 'weekly': periodsLeft = daysLeft / 7; break;
-                    case 'bi-weekly': periodsLeft = daysLeft / 14; break;
-                    case 'monthly': periodsLeft = daysLeft / 30.44; break;
-                    case 'quarterly': periodsLeft = daysLeft / 91.31; break;
-                    case 'annually': periodsLeft = daysLeft / 365.25; break;
-                }
-                
-                if (daysLeft <= 0) {
-                    suggestionText = "Your deadline has passed. Keep saving!";
-                } else if (periodsLeft > 0) {
-                    const suggestedAmount = remaining / periodsLeft;
-                    suggestionText = `Save ~${appSettings.currency}${suggestedAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${goal.frequency} to reach your goal.`;
+            if (paymentStatus.remaining > 0) {
+                if (paymentStatus.isOverdue) {
+                    suggestionText = `You are behind! Save ${appSettings.currency}${paymentStatus.amountDue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} to catch up.`;
                 } else {
-                    suggestionText = `Only ${daysLeft} days left to save ${appSettings.currency}${remaining.toLocaleString()}!`;
+                    suggestionText = `Save ~${appSettings.currency}${paymentStatus.periodicAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${goal.frequency} to stay on track.`;
                 }
+                nextDueDateHTML = `<div class="mt-4 text-center text-sm font-medium text-gray-600 dark:text-gray-300 p-3 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                    Next payment due: <strong>${paymentStatus.nextDueDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong>
+                </div>`;
             }
             
             goalDetailView.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div class="flex flex-col justify-center items-center ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'} rounded-xl p-6">
-<h2 class="text-2xl font-bold text-center break-words whitespace-normal leading-snug max-w-[90%] mx-auto flex flex-col items-center gap-2">
-    <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-8 h-8"></i>
-    <span class="text-center">${goal.goalName}</span>
-</h2>
+                        <h2 class="text-2xl font-bold text-center break-words whitespace-normal leading-snug max-w-[90%] mx-auto">
+                             <span class="text-center">${goal.goalName}</span>
+                        </h2>
                         <div id="piggy-bank-wrapper" class="my-6 w-32 h-32 relative flex items-center justify-center">
                             <i data-lucide="${goal.icon || 'piggy-bank'}" class="w-full h-full text-pink-400 dark:text-pink-300"></i>
                         </div>
@@ -510,6 +511,7 @@
                             <span>${appSettings.currency}${objective.toLocaleString()}</span>
                         </div>
                         <p class="text-center text-sm text-indigo-400 mt-3 font-medium h-10 flex items-center justify-center">${suggestionText}</p>
+                        ${nextDueDateHTML}
                     </div>
                     <div class="space-y-4">
                         <h3 class="text-xl font-semibold">Actions</h3>
@@ -547,10 +549,10 @@
             document.getElementById('view-history-btn').addEventListener('click', () => renderHistory(goal));
             document.getElementById('delete-goal-btn').addEventListener('click', () => openDeleteModal(goal.id));
             
-            document.querySelectorAll('.progress-view-btn').forEach(btn => {
+            document.querySelectorAll('#goal-detail-view .progress-view-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const view = e.currentTarget.dataset.view;
-                    document.querySelectorAll('.progress-view-btn').forEach(b => b.classList.remove('selected', 'ring-blue-400'));
+                    document.querySelectorAll('#goal-detail-view .progress-view-btn').forEach(b => b.classList.remove('selected', 'ring-blue-400'));
                     e.currentTarget.classList.add('selected', 'ring-blue-400');
                     if (view === 'graph') {
                         document.getElementById('goal-chart-container').classList.remove('hidden');
@@ -567,8 +569,8 @@
             document.getElementById('goal-progress-container').style.display = appSettings.showGoalProgress ? 'block' : 'none';
             if(appSettings.showGoalProgress) {
                 renderGoalChart(goal);
-                renderGoalTable(goal);
-                document.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
+                renderGoalTable(goal, 1);
+                document.querySelector('#goal-detail-view .progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
             }
         }
         
@@ -582,7 +584,7 @@
                 sorted.forEach(tx => {
                     historyHTML += `<div class="flex justify-between items-center p-2 rounded-lg ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}">
                         <span class="font-semibold text-green-500">+ ${appSettings.currency}${tx.amount.toLocaleString()}</span>
-                        <span class="text-xs text-gray-500">${new Date(tx.date).toLocaleDateString()}</span>
+                        <span class="text-xs text-gray-500">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                     </div>`;
                 });
                 historyHTML += '</div>';
@@ -624,7 +626,7 @@
                 goalNameInput.value = '';
                 objectiveAmountInput.value = '';
                 targetDateInput.value = '';
-                frequencyInput.value = 'weekly';
+                frequencyInput.value = ''; // No default
                 iconInput.value = 'piggy-bank';
             }
             
@@ -737,7 +739,7 @@
             
             allTransactions.forEach(tx => {
                 cumulativeAmount += tx.amount;
-                labels.push(new Date(tx.date).toLocaleDateString());
+                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }));
                 data.push(cumulativeAmount);
             });
 
@@ -766,12 +768,10 @@
             
             const labels = [];
             const data = [];
-            let cumulativeAmount = 0;
 
             transactions.forEach(tx => {
-                cumulativeAmount += tx.amount;
-                labels.push(new Date(tx.date).toLocaleDateString());
-                data.push(goal.objectiveAmount - cumulativeAmount);
+                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }));
+                data.push(tx.amount);
             });
 
             goalChartInstance = new Chart(ctx, {
@@ -779,10 +779,10 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: `Remaining Balance (${appSettings.currency})`,
+                        label: `Amount Saved (${appSettings.currency})`,
                         data: data,
-                        backgroundColor: 'rgba(239, 68, 68, 0.5)',
-                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(34, 197, 94, 0.5)',
+                        borderColor: '#22c55e',
                         borderWidth: 1
                     }]
                 },
@@ -790,28 +790,51 @@
             });
         }
         
-        function renderGoalTable(goal) {
+        function renderGoalTable(goal, page = 1) {
             const container = document.getElementById('goal-table-container');
+            let transactions = (goal.transactions || []);
+            
+            const sortKey = goalTableSortConfig.key;
+            const direction = goalTableSortConfig.direction === 'ascending' ? 1 : -1;
+            
+            transactions.sort((a, b) => {
+                if (sortKey === 'date') return (new Date(a.date) - new Date(b.date)) * direction;
+                if (sortKey === 'amount') return (a.amount - b.amount) * direction;
+                if (sortKey === 'remaining') {
+                    // This requires calculating cumulative on the fly for sorting, which is complex.
+                    // We'll sort by date as a proxy for this example.
+                    return (new Date(a.date) - new Date(b.date)) * direction;
+                }
+                return 0;
+            }).reverse(); // Default to newest first
+
+            const itemsPerPage = 5;
+            const totalPages = Math.ceil(transactions.length / itemsPerPage);
+            const startIndex = (page - 1) * itemsPerPage;
+            const paginatedTransactions = transactions.slice(startIndex, startIndex + itemsPerPage);
+
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
-                        <th scope="col" class="px-6 py-3">Date</th>
-                        <th scope="col" class="px-6 py-3">Amount Saved</th>
-                        <th scope="col" class="px-6 py-3">Remaining</th>
+                        <th scope="col" class="px-6 py-3"><button class="flex items-center gap-1 sort-btn" data-key="date">Date</button></th>
+                        <th scope="col" class="px-6 py-3"><button class="flex items-center gap-1 sort-btn" data-key="amount">Amount Saved</button></th>
+                        <th scope="col" class="px-6 py-3"><button class="flex items-center gap-1 sort-btn" data-key="remaining">Remaining</button></th>
                     </tr>
                 </thead><tbody>`;
-
-            let cumulativeAmount = 0;
-            const transactions = (goal.transactions || []).sort((a,b) => new Date(a.date) - new Date(b.date));
 
             if (transactions.length === 0) {
                 tableHTML += `<tr><td colspan="3" class="text-center py-4">No transactions yet.</td></tr>`;
             } else {
-                transactions.forEach(tx => {
-                    cumulativeAmount += tx.amount;
-                    const remaining = goal.objectiveAmount - cumulativeAmount;
+                const allSortedTransactions = (goal.transactions || []).sort((a,b) => new Date(a.date) - new Date(b.date));
+                paginatedTransactions.forEach(tx => {
+                    let currentCumulative = 0;
+                    for(const t of allSortedTransactions) {
+                        currentCumulative += t.amount;
+                        if (t.date === tx.date) break;
+                    }
+                    const remaining = goal.objectiveAmount - currentCumulative;
                     tableHTML += `<tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-                        <td class="px-6 py-4">${new Date(tx.date).toLocaleDateString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
                         <td class="px-6 py-4 text-green-500 font-medium">+ ${appSettings.currency}${tx.amount.toLocaleString()}</td>
                         <td class="px-6 py-4">${appSettings.currency}${remaining.toLocaleString()}</td>
                     </tr>`;
@@ -819,7 +842,134 @@
             }
             
             tableHTML += `</tbody></table></div>`;
+            
+            if (totalPages > 1) {
+                tableHTML += `<div class="flex justify-center items-center gap-2 mt-4">`;
+                const prevDisabled = page === 1 ? 'disabled' : '';
+                tableHTML += `<button ${prevDisabled} data-page="${page - 1}" class="page-nav-btn p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"><i data-lucide="chevron-left"></i></button>`;
+                
+                for(let i = 1; i <= totalPages; i++) {
+                    const activeClass = i === page ? 'active' : '';
+                    tableHTML += `<button data-page="${i}" class="page-btn w-8 h-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${activeClass}">${i}</button>`;
+                }
+
+                const nextDisabled = page === totalPages ? 'disabled' : '';
+                tableHTML += `<button ${nextDisabled} data-page="${page + 1}" class="page-nav-btn p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"><i data-lucide="chevron-right"></i></button>`;
+                tableHTML += `</div>`;
+            }
+
             container.innerHTML = tableHTML;
+            
+            // Add sort indicators and event listeners
+            container.querySelectorAll('.sort-btn').forEach(btn => {
+                const key = btn.dataset.key;
+                if (key === goalTableSortConfig.key) {
+                    const icon = goalTableSortConfig.direction === 'ascending' ? 'arrow-up' : 'arrow-down';
+                    btn.innerHTML += `<i data-lucide="${icon}" class="w-4 h-4"></i>`;
+                }
+                btn.addEventListener('click', () => {
+                    if (goalTableSortConfig.key === key) {
+                        goalTableSortConfig.direction = goalTableSortConfig.direction === 'ascending' ? 'descending' : 'ascending';
+                    } else {
+                        goalTableSortConfig.key = key;
+                        goalTableSortConfig.direction = 'descending';
+                    }
+                    renderGoalTable(goal, 1);
+                });
+            });
+            lucide.createIcons();
+            
+            container.querySelectorAll('.page-btn, .page-nav-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const newPage = parseInt(e.currentTarget.dataset.page);
+                    renderGoalTable(goal, newPage);
+                });
+            });
+        }
+        
+        function renderOverallTable(page = 1) {
+            const container = document.getElementById('overall-table-container');
+            const allTransactions = goals.flatMap(g => (g.transactions || []).map(t => ({...t, goalName: g.goalName})));
+            
+            const sortKey = overallTableSortConfig.key;
+            const direction = overallTableSortConfig.direction === 'ascending' ? 1 : -1;
+
+            allTransactions.sort((a, b) => {
+                if (sortKey === 'date') return (new Date(a.date) - new Date(b.date)) * direction;
+                if (sortKey === 'goalName') return a.goalName.localeCompare(b.goalName) * direction;
+                if (sortKey === 'amount') return (a.amount - b.amount) * direction;
+                return 0;
+            }).reverse();
+
+            const itemsPerPage = 5;
+            const totalPages = Math.ceil(allTransactions.length / itemsPerPage);
+            const startIndex = (page - 1) * itemsPerPage;
+            const paginatedTransactions = allTransactions.slice(startIndex, startIndex + itemsPerPage);
+
+            let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                        <th scope="col" class="px-6 py-3"><button class="flex items-center gap-1 sort-btn-overall" data-key="date">Date</button></th>
+                        <th scope="col" class="px-6 py-3"><button class="flex items-center gap-1 sort-btn-overall" data-key="goalName">Goal</button></th>
+                        <th scope="col" class="px-6 py-3"><button class="flex items-center gap-1 sort-btn-overall" data-key="amount">Amount Saved</button></th>
+                    </tr>
+                </thead><tbody>`;
+
+            if (paginatedTransactions.length === 0) {
+                tableHTML += `<tr><td colspan="3" class="text-center py-4">No transactions yet.</td></tr>`;
+            } else {
+                paginatedTransactions.forEach(tx => {
+                    tableHTML += `<tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                        <td class="px-6 py-4 truncate">${tx.goalName}</td>
+                        <td class="px-6 py-4 text-green-500 font-medium">+ ${appSettings.currency}${tx.amount.toLocaleString()}</td>
+                    </tr>`;
+                });
+            }
+            
+            tableHTML += `</tbody></table></div>`;
+            
+            if (totalPages > 1) {
+                tableHTML += `<div class="flex justify-center items-center gap-2 mt-4">`;
+                const prevDisabled = page === 1 ? 'disabled' : '';
+                tableHTML += `<button ${prevDisabled} data-page="${page - 1}" class="page-nav-btn-overall p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"><i data-lucide="chevron-left"></i></button>`;
+                
+                for(let i = 1; i <= totalPages; i++) {
+                    const activeClass = i === page ? 'active' : '';
+                    tableHTML += `<button data-page="${i}" class="page-btn-overall w-8 h-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${activeClass}">${i}</button>`;
+                }
+
+                const nextDisabled = page === totalPages ? 'disabled' : '';
+                tableHTML += `<button ${nextDisabled} data-page="${page + 1}" class="page-nav-btn-overall p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"><i data-lucide="chevron-right"></i></button>`;
+                tableHTML += `</div>`;
+            }
+
+            container.innerHTML = tableHTML;
+            
+            container.querySelectorAll('.sort-btn-overall').forEach(btn => {
+                const key = btn.dataset.key;
+                if (key === overallTableSortConfig.key) {
+                    const icon = overallTableSortConfig.direction === 'ascending' ? 'arrow-up' : 'arrow-down';
+                    btn.innerHTML += `<i data-lucide="${icon}" class="w-4 h-4"></i>`;
+                }
+                btn.addEventListener('click', () => {
+                    if (overallTableSortConfig.key === key) {
+                        overallTableSortConfig.direction = overallTableSortConfig.direction === 'ascending' ? 'descending' : 'ascending';
+                    } else {
+                        overallTableSortConfig.key = key;
+                        overallTableSortConfig.direction = 'descending';
+                    }
+                    renderOverallTable(1);
+                });
+            });
+            lucide.createIcons();
+            
+            container.querySelectorAll('.page-btn-overall, .page-nav-btn-overall').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const newPage = parseInt(e.currentTarget.dataset.page);
+                    renderOverallTable(newPage);
+                });
+            });
         }
 
 
@@ -870,7 +1020,7 @@
             const date = targetDateInput.value;
             const freq = frequencyInput.value;
 
-            if (!amount || !date || amount <= 0) {
+            if (!amount || !date || amount <= 0 || !freq) {
                 formSuggestion.textContent = '';
                 return;
             }
@@ -900,6 +1050,50 @@
                 formSuggestion.textContent = '';
             }
         }
+        
+        function calculatePaymentStatus(goal) {
+            const now = new Date();
+            const startDate = new Date(goal.createdAt);
+            const totalDuration = new Date(goal.targetDate) - startDate;
+            let totalPeriods = 1;
+
+            switch (goal.frequency) {
+                case 'daily': totalPeriods = totalDuration / (1000 * 3600 * 24); break;
+                case 'weekly': totalPeriods = totalDuration / (1000 * 3600 * 24 * 7); break;
+                case 'bi-weekly': totalPeriods = totalDuration / (1000 * 3600 * 24 * 14); break;
+                case 'monthly': totalPeriods = totalDuration / (1000 * 3600 * 24 * 30.44); break;
+                case 'quarterly': totalPeriods = totalDuration / (1000 * 3600 * 24 * 91.31); break;
+                case 'annually': totalPeriods = totalDuration / (1000 * 3600 * 24 * 365.25); break;
+            }
+            
+            const periodicAmount = goal.objectiveAmount / totalPeriods;
+            
+            const periodsPassed = Math.floor((now - startDate) / (totalDuration / totalPeriods));
+            const expectedSavings = periodsPassed * periodicAmount;
+            
+            const amountDue = expectedSavings - (goal.currentAmount || 0);
+            
+            let nextDueDate = new Date(startDate);
+             while(nextDueDate <= now) {
+                switch (goal.frequency) {
+                    case 'daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
+                    case 'weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
+                    case 'bi-weekly': nextDueDate.setDate(nextDueDate.getDate() + 14); break;
+                    case 'monthly': nextDueDate.setMonth(nextDueDate.getMonth() + 1); break;
+                    case 'quarterly': nextDueDate.setMonth(nextDueDate.getMonth() + 3); break;
+                    case 'annually': nextDueDate.setFullYear(nextDueDate.getFullYear() + 1); break;
+                }
+            }
+            
+            return {
+                remaining: goal.objectiveAmount - (goal.currentAmount || 0),
+                isOverdue: amountDue > 0,
+                amountDue: amountDue > 0 ? amountDue + periodicAmount : periodicAmount,
+                periodicAmount: periodicAmount,
+                nextDueDate: nextDueDate
+            };
+        }
+
 
         // --- EVENT HANDLERS & ACTIONS ---
         footerBtns.forEach(btn => {
@@ -961,10 +1155,9 @@
                 targetDate: targetDateInput.value,
                 frequency: frequencyInput.value,
                 icon: iconInput.value || 'piggy-bank',
-                createdAt: new Date().toISOString()
             };
-            if (!data.targetDate || data.objectiveAmount <= 0) {
-                showMessage("Please fill in a valid target amount and date.", "error");
+            if (!data.targetDate || data.objectiveAmount <= 0 || !data.frequency) {
+                showMessage("Please fill in all fields.", "error");
                 return;
             }
             if (id) {
@@ -976,6 +1169,7 @@
                 data.id = `goal_${new Date().getTime()}`;
                 data.currentAmount = 0;
                 data.transactions = [];
+                data.createdAt = new Date().toISOString();
                 goals.push(data);
             }
             saveGoals();
@@ -1029,6 +1223,21 @@
         lucide.createIcons();
         showView('dashboard-view');
         
+        document.getElementById('overall-progress-view-toggle').addEventListener('click', (e) => {
+            const view = e.target.closest('.progress-view-btn')?.dataset.view;
+            if (view) {
+                document.querySelectorAll('#overall-progress-view-toggle .progress-view-btn').forEach(b => b.classList.remove('selected', 'ring-blue-400'));
+                e.target.closest('.progress-view-btn').classList.add('selected', 'ring-blue-400');
+                if (view === 'graph') {
+                    document.getElementById('overall-chart-container').classList.remove('hidden');
+                    document.getElementById('overall-table-container').classList.add('hidden');
+                } else {
+                    document.getElementById('overall-chart-container').classList.add('hidden');
+                    document.getElementById('overall-table-container').classList.remove('hidden');
+                }
+            }
+        });
+
         // Listen for system theme changes to update the UI in real-time
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
             if (appSettings.theme === 'system') {
