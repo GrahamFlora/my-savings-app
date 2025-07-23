@@ -388,14 +388,14 @@
         // --- RENDER FUNCTIONS ---
         function renderDashboard() {
             renderGoalsList();
-            document.getElementById('overall-progress-container').style.display = appSettings.showOverallProgress ? 'block' : 'none';
+            const progressContainer = document.getElementById('overall-progress-container');
+            progressContainer.style.display = appSettings.showOverallProgress ? 'block' : 'none';
             if (appSettings.showOverallProgress) {
                 renderOverallChart();
                 renderOverallTable(1);
-                const container = document.getElementById('overall-progress-container');
-                container.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
-                container.querySelector('#overall-chart-container').classList.add('hidden');
-                container.querySelector('#overall-table-container').classList.remove('hidden');
+                progressContainer.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
+                progressContainer.querySelector('#overall-chart-container').classList.add('hidden');
+                progressContainer.querySelector('#overall-table-container').classList.remove('hidden');
             }
         }
 
@@ -935,7 +935,7 @@
                 
                 for(let i = 1; i <= totalPages; i++) {
                     const activeClass = i === page ? 'active' : '';
-                    tableHTML += `<button data-page="${i}" class="page-btn-overall w-8 h-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${activeClass}">${i}</button>`;
+                    tableHTML += `<button data-page="${i}" class="page-btn w-8 h-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${activeClass}">${i}</button>`;
                 }
 
                 const nextDisabled = page === totalPages ? 'disabled' : '';
@@ -963,7 +963,7 @@
             });
             lucide.createIcons();
             
-            container.querySelectorAll('.page-btn-overall, .page-nav-btn-overall').forEach(btn => {
+            container.querySelectorAll('.page-btn, .page-nav-btn-overall').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const newPage = parseInt(e.currentTarget.dataset.page);
                     renderOverallTable(newPage);
