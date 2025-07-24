@@ -793,36 +793,58 @@
             });
         }
 
-        function renderGoalChart(goal) {
-            const ctx = document.getElementById('goal-chart').getContext('2d');
-            if (goalChartInstance) {
-                goalChartInstance.destroy();
+function renderGoalChart(goal) {
+    const ctx = document.getElementById('goal-chart').getContext('2d');
+    if (goalChartInstance) {
+        goalChartInstance.destroy();
+    }
+    const transactions = (goal.transactions || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    const labels = [];
+    const data = [];
+    let cumulativeAmount = 0;
+
+    transactions.forEach(tx => {
+        cumulativeAmount += tx.amount; // Add transaction amount to running total
+        labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' }));
+        data.push(cumulativeAmount); // Plot cumulative total
+    });
+
+    goalChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `Total Saved (${appSettings.currency})`,
+                data: data,
+                backgroundColor: 'rgba(34, 197, 94, 0.5)',
+                borderColor: '#22c55e',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            ...getChartOptions(),
+            scales: {
+                ...getChartOptions().scales,
+                y: {
+                    beginAtZero: true,
+                    max: goal.objectiveAmount, // Set Y-axis max to the goal's target amount
+                    ticks: {
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#4b5563',
+                        callback: function(value) {
+                            return `${appSettings.currency}${value.toLocaleString()}`; // Format Y-axis labels with currency
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Total Saved',
+                        color: document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#1f2937'
+                    }
+                }
             }
-            const transactions = (goal.transactions || []).sort((a,b) => new Date(a.date) - new Date(b.date));
-            
-            const labels = [];
-            const data = [];
-
-            transactions.forEach(tx => {
-                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' }));
-                data.push(tx.amount);
-            });
-
-            goalChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: `Amount Saved (${appSettings.currency})`,
-                        data: data,
-                        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-                        borderColor: '#22c55e',
-                        borderWidth: 1
-                    }]
-                },
-                options: getChartOptions()
-            });
         }
+    });
+}
         
         function renderGoalTable(goal, page = 1) {
             const container = document.getElementById('goal-table-container');
