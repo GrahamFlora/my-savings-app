@@ -103,7 +103,7 @@
                             <button data-view="graph" class="progress-view-btn p-1 rounded-md"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></button>
                         </div>
                     </div>
-                    <div id="overall-chart-container" class="rounded-xl relative" style="min-height: 300px;">
+                    <div id="overall-chart-container" class="p-4 rounded-xl relative" style="min-height: 300px;">
                         <canvas id="overall-chart"></canvas>
                     </div>
                     <div id="overall-table-container" class="hidden rounded-xl">
@@ -553,7 +553,7 @@
                             <span>Add</span>
                         </button>
                         <button id="edit-goal-btn" class="w-full text-left p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="pencil" class="w-5 h-5"></i>Edit Goal Details</button>
-                        <button id="view-history-btn" class="w-full text-left p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="history" class="w-5 h-5"></i>View Transaction History</button>
+                        <button id="view-history-btn" class="w-full text-left p-3 rounded-lg hover:bag-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="history" class="w-5 h-5"></i>View Transaction History</button>
                         <button id="delete-goal-btn" class="w-full text-left p-3 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 flex items-center gap-3"><i data-lucide="trash-2" class="w-5 h-5"></i>Delete Goal</button>
                     </div>
                 </div>
@@ -565,9 +565,9 @@
                             <button data-view="graph" class="progress-view-btn p-1 rounded-md"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></button>
                         </div>
                     </div>
-                  <div id="goal-chart-container" class="hidden p-4 rounded-xl h-96">
-                      <canvas id="goal-chart" class="w-full h-full"></canvas>
-                   </div>
+                    <div id="goal-chart-container" class="hidden rounded-xl h-96">
+                        <canvas id="goal-chart" class="w-full h-full"></canvas>
+                    </div>
                     <div id="goal-table-container" class="rounded-xl">
                         <!-- Table will be inserted here -->
                     </div>
@@ -771,7 +771,7 @@
             
             allTransactions.forEach(tx => {
                 cumulativeAmount += tx.amount;
-                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }));
+                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' }));
                 data.push(cumulativeAmount);
             });
 
@@ -802,7 +802,7 @@
             const data = [];
 
             transactions.forEach(tx => {
-                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }));
+                labels.push(new Date(tx.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' }));
                 data.push(tx.amount);
             });
 
@@ -867,7 +867,7 @@
                     }
                     const remaining = goal.objectiveAmount - currentCumulative;
                     tableHTML += `<tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-                        <td class="px-6 py-4 whitespace-nowrap">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'medium' })}</td>
                         <td class="px-6 py-4 text-green-500 font-medium">+ ${appSettings.currency}${tx.amount.toLocaleString()}</td>
                         <td class="px-6 py-4">${appSettings.currency}${remaining.toLocaleString()}</td>
                         <td class="px-6 py-4 flex items-center justify-center gap-2">
@@ -966,7 +966,7 @@
             } else {
                 paginatedTransactions.forEach(tx => {
                     tableHTML += `<tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-                        <td class="px-6 py-4 whitespace-nowrap">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'medium' })}</td>
                         <td class="px-6 py-4 truncate">${tx.goalName}</td>
                         <td class="px-6 py-4 text-green-500 font-medium">+ ${appSettings.currency}${tx.amount.toLocaleString()}</td>
                         <td class="px-6 py-4 flex items-center justify-center gap-2">
