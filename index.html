@@ -423,6 +423,8 @@
             if (appSettings.showOverallProgress) {
                 renderOverallChart();
                 renderOverallTable(1);
+                const toggleButtons = progressContainer.querySelectorAll('.progress-view-btn');
+                toggleButtons.forEach(btn => btn.classList.remove('selected', 'ring-blue-400'));
                 progressContainer.querySelector('.progress-view-btn[data-view="table"]').classList.add('selected', 'ring-blue-400');
                 progressContainer.querySelector('#overall-chart-container').classList.add('hidden');
                 progressContainer.querySelector('#overall-table-container').classList.remove('hidden');
@@ -553,7 +555,7 @@
                             <span>Add</span>
                         </button>
                         <button id="edit-goal-btn" class="w-full text-left p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="pencil" class="w-5 h-5"></i>Edit Goal Details</button>
-                        <button id="view-history-btn" class="w-full text-left p-3 rounded-lg hover:bag-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="history" class="w-5 h-5"></i>View Transaction History</button>
+                        <button id="view-history-btn" class="w-full text-left p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-3"><i data-lucide="history" class="w-5 h-5"></i>View Transaction History</button>
                         <button id="delete-goal-btn" class="w-full text-left p-3 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 flex items-center gap-3"><i data-lucide="trash-2" class="w-5 h-5"></i>Delete Goal</button>
                     </div>
                 </div>
@@ -613,7 +615,7 @@
                 sorted.forEach(tx => {
                     historyHTML += `<div class="flex justify-between items-center p-2 rounded-lg ${appSettings.cardColor || 'bg-gray-50 dark:bg-gray-700/50'}">
                         <span class="font-semibold text-green-500">+ ${appSettings.currency}${tx.amount.toLocaleString()}</span>
-                        <span class="text-xs text-gray-500">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        <span class="text-xs text-gray-500">${new Date(tx.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'medium' })}</span>
                     </div>`;
                 });
                 historyHTML += '</div>';
