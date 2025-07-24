@@ -106,7 +106,7 @@
                     <div id="overall-chart-container" class="p-4 rounded-xl relative" style="min-height: 300px;">
                         <canvas id="overall-chart"></canvas>
                     </div>
-                    <div id="overall-table-container" class="hidden p-4 rounded-xl">
+                    <div id="overall-table-container" class="hidden rounded-xl">
                         <!-- Overall table will be inserted here -->
                     </div>
                 </div>
@@ -868,8 +868,8 @@
                         <td class="px-6 py-4 text-green-500 font-medium">+ ${appSettings.currency}${tx.amount.toLocaleString()}</td>
                         <td class="px-6 py-4">${appSettings.currency}${remaining.toLocaleString()}</td>
                         <td class="px-6 py-4 flex items-center justify-center gap-2">
-                            <button class="edit-tx-btn p-2" data-goal-id="${goal.id}" data-tx-date="${tx.date}" data-amount="${tx.amount}"><i data-lucide="pencil" class="w-5 h-5 text-blue-500"></i></button>
-                            <button class="delete-tx-btn p-2" data-goal-id="${goal.id}" data-tx-date="${tx.date}"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i></button>
+                            <button class="edit-tx-btn p-2" data-goal-id="${goal.id}" data-tx-date="${tx.date}" data-amount="${tx.amount}"><i data-lucide="pencil" class="w-4 h-4 text-blue-500"></i></button>
+                            <button class="delete-tx-btn p-2" data-goal-id="${goal.id}" data-tx-date="${tx.date}"><i data-lucide="trash-2" class="w-4 h-4 text-red-500"></i></button>
                         </td>
                     </tr>`;
                 });
@@ -967,8 +967,8 @@
                         <td class="px-6 py-4 truncate">${tx.goalName}</td>
                         <td class="px-6 py-4 text-green-500 font-medium">+ ${appSettings.currency}${tx.amount.toLocaleString()}</td>
                         <td class="px-6 py-4 flex items-center justify-center gap-2">
-                            <button class="edit-tx-btn p-2" data-goal-id="${tx.goalId}" data-tx-date="${tx.date}" data-amount="${tx.amount}"><i data-lucide="pencil" class="w-5 h-5 text-blue-500"></i></button>
-                            <button class="delete-tx-btn p-2" data-goal-id="${tx.goalId}" data-tx-date="${tx.date}"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i></button>
+                            <button class="edit-tx-btn p-2" data-goal-id="${tx.goalId}" data-tx-date="${tx.date}" data-amount="${tx.amount}"><i data-lucide="pencil" class="w-4 h-4 text-blue-500"></i></button>
+                            <button class="delete-tx-btn p-2" data-goal-id="${tx.goalId}" data-tx-date="${tx.date}"><i data-lucide="trash-2" class="w-4 h-4 text-red-500"></i></button>
                         </td>
                     </tr>`;
                 });
