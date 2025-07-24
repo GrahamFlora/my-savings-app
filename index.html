@@ -103,7 +103,7 @@
                             <button data-view="graph" class="progress-view-btn p-1 rounded-md"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></button>
                         </div>
                     </div>
-                    <div id="overall-chart-container" class="p-4 rounded-xl relative" style="min-height: 300px;">
+                    <div id="overall-chart-container" class="rounded-xl relative" style="min-height: 300px;">
                         <canvas id="overall-chart"></canvas>
                     </div>
                     <div id="overall-table-container" class="hidden rounded-xl">
@@ -568,7 +568,7 @@
                     <div id="goal-chart-container" class="hidden p-4 rounded-xl">
                         <canvas id="goal-chart"></canvas>
                     </div>
-                    <div id="goal-table-container" class="p-4 rounded-xl">
+                    <div id="goal-table-container" class="rounded-xl">
                         <!-- Table will be inserted here -->
                     </div>
                 </div>
@@ -748,7 +748,10 @@
                         beginAtZero: true,
                         ticks: { color: isDark ? '#9ca3af' : '#4b5563' }
                     },
-                    x: { ticks: { color: isDark ? '#9ca3af' : '#4b5563' } }
+                    x: { ticks: { 
+                        color: isDark ? '#9ca3af' : '#4b5563',
+                        maxTicksLimit: 6
+                    }}
                 },
                 plugins: { legend: { labels: { color: isDark ? '#e5e7eb' : '#1f2937' } } }
             };
